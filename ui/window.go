@@ -21,13 +21,13 @@ type Visualizer struct {
 	Debug         bool
 	OnScreenReady func(s screen.Screen)
 
-	w    screen.Window
-	scr  screen.Screen
-	tx   chan screen.Texture
-	done chan struct{}
-
+	w   screen.Window
+	scr screen.Screen
 	sz  size.Event
 	pos image.Point
+
+	tx   chan screen.Texture
+	done chan struct{}
 }
 
 func (pw *Visualizer) Main() {
@@ -41,11 +41,7 @@ func (pw *Visualizer) Update(t screen.Texture) {
 }
 
 func (pw *Visualizer) run(s screen.Screen) {
-	w, err := s.NewWindow(&screen.NewWindowOptions{
-		Title:  pw.Title,
-		Width:  800,
-		Height: 800,
-	})
+	w, err := s.NewWindow(&screen.NewWindowOptions{Title: pw.Title, Width: 800, Height: 800})
 	if err != nil {
 		log.Fatal("Failed to initialize the app window:", err)
 	}
@@ -96,13 +92,9 @@ func (pw *Visualizer) run(s screen.Screen) {
 func detectTerminate(e any) bool {
 	switch e := e.(type) {
 	case lifecycle.Event:
-		if e.To == lifecycle.StageDead {
-			return true
-		}
+		return e.To == lifecycle.StageDead
 	case key.Event:
-		if e.Code == key.CodeEscape {
-			return true
-		}
+		return e.Code == key.CodeEscape
 	}
 	return false
 }
