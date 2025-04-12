@@ -22,18 +22,17 @@ type Visualizer struct {
 	OnScreenReady func(s screen.Screen)
 
 	w    screen.Window
+	scr  screen.Screen
 	tx   chan screen.Texture
 	done chan struct{}
 
 	sz  size.Event
-	pos image.Rectangle
+	pos image.Point
 }
 
 func (pw *Visualizer) Main() {
 	pw.tx = make(chan screen.Texture)
 	pw.done = make(chan struct{})
-	pw.pos.Max.X = 200
-	pw.pos.Max.Y = 200
 	driver.Main(pw.run)
 }
 
@@ -43,7 +42,9 @@ func (pw *Visualizer) Update(t screen.Texture) {
 
 func (pw *Visualizer) run(s screen.Screen) {
 	w, err := s.NewWindow(&screen.NewWindowOptions{
-		Title: pw.Title,
+		Title:  pw.Title,
+		Width:  800,
+		Height: 800,
 	})
 	if err != nil {
 		log.Fatal("Failed to initialize the app window:", err)
@@ -52,6 +53,8 @@ func (pw *Visualizer) run(s screen.Screen) {
 		w.Release()
 		close(pw.done)
 	}()
+
+	pw.scr = s // Зберігаємо screen.Screen для створення текстури
 
 	if pw.OnScreenReady != nil {
 		pw.OnScreenReady(s)
@@ -94,11 +97,11 @@ func detectTerminate(e any) bool {
 	switch e := e.(type) {
 	case lifecycle.Event:
 		if e.To == lifecycle.StageDead {
-			return true // Window destroy initiated.
+			return true
 		}
 	case key.Event:
 		if e.Code == key.CodeEscape {
-			return true // Esc pressed.
+			return true
 		}
 	}
 	return false
@@ -107,23 +110,28 @@ func detectTerminate(e any) bool {
 func (pw *Visualizer) handleEvent(e any, t screen.Texture) {
 	switch e := e.(type) {
 
-	case size.Event: // Оновлення даних про розмір вікна.
+	case size.Event:
 		pw.sz = e
 
 	case error:
 		log.Printf("ERROR: %s", e)
 
 	case mouse.Event:
-		if t == nil {
-			// TODO: Реалізувати реакцію на натискання кнопки миші.
+		if e.Button == mouse.ButtonRight && e.Direction == mouse.DirPress {
+			center := image.Pt(int(e.X), int(e.Y))
+			tex, err := pw.scr.NewTexture(pw.sz.Bounds().Size())
+			if err != nil {
+				log.Println("failed to create texture:", err)
+				return
+			}
+			drawCross(tex, pw.sz, center)
+			pw.Update(tex)
 		}
 
 	case paint.Event:
-		// Малювання контенту вікна.
 		if t == nil {
 			pw.drawDefaultUI()
 		} else {
-			// Використання текстури отриманої через виклик Update.
 			pw.w.Scale(pw.sz.Bounds(), t, t.Bounds(), draw.Src, nil)
 		}
 		pw.w.Publish()
@@ -131,12 +139,41 @@ func (pw *Visualizer) handleEvent(e any, t screen.Texture) {
 }
 
 func (pw *Visualizer) drawDefaultUI() {
-	pw.w.Fill(pw.sz.Bounds(), color.Black, draw.Src) // Фон.
+	pw.w.Fill(pw.sz.Bounds(), color.White, draw.Src)
 
-	// TODO: Змінити колір фону та додати відображення фігури у вашому варіанті.
+	center := image.Point{
+		X: pw.sz.Bounds().Dx() / 2,
+		Y: pw.sz.Bounds().Dy() / 2,
+	}
 
-	// Малювання білої рамки.
+	drawCross(pw.w, pw.sz, center)
+
 	for _, br := range imageutil.Border(pw.sz.Bounds(), 10) {
 		pw.w.Fill(br, color.White, draw.Src)
 	}
+}
+
+func drawCross(target interface {
+	Fill(r image.Rectangle, c color.Color, op draw.Op)
+}, sz size.Event, center image.Point) {
+	crossSize := sz.Bounds().Dx() / 2
+	thickness := crossSize / 3
+	blue := color.RGBA{0, 0, 255, 255}
+
+	vRect := image.Rect(
+		center.X-thickness/2,
+		center.Y-crossSize/2,
+		center.X+thickness/2,
+		center.Y+crossSize/2,
+	)
+
+	hRect := image.Rect(
+		center.X-crossSize/2,
+		center.Y-thickness/2,
+		center.X+crossSize/2,
+		center.Y+thickness/2,
+	)
+
+	target.Fill(vRect, blue, draw.Src)
+	target.Fill(hRect, blue, draw.Src)
 }
