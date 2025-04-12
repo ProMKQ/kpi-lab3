@@ -21,13 +21,17 @@ type Visualizer struct {
 	Debug         bool
 	OnScreenReady func(s screen.Screen)
 
-	w   screen.Window
-	scr screen.Screen
-	sz  size.Event
-	pos image.Point
-
+	w    screen.Window
+	scr  screen.Screen
 	tx   chan screen.Texture
 	done chan struct{}
+
+	sz          size.Event
+	crossCenter *image.Point // нове: центр хрестика
+}
+
+func (pw *Visualizer) Update(t screen.Texture) {
+	panic("implement me")
 }
 
 func (pw *Visualizer) Main() {
@@ -36,12 +40,12 @@ func (pw *Visualizer) Main() {
 	driver.Main(pw.run)
 }
 
-func (pw *Visualizer) Update(t screen.Texture) {
-	pw.tx <- t
-}
-
 func (pw *Visualizer) run(s screen.Screen) {
-	w, err := s.NewWindow(&screen.NewWindowOptions{Title: pw.Title, Width: 800, Height: 800})
+	w, err := s.NewWindow(&screen.NewWindowOptions{
+		Title:  pw.Title,
+		Width:  800,
+		Height: 800,
+	})
 	if err != nil {
 		log.Fatal("Failed to initialize the app window:", err)
 	}
@@ -50,7 +54,7 @@ func (pw *Visualizer) run(s screen.Screen) {
 		close(pw.done)
 	}()
 
-	pw.scr = s // Зберігаємо screen.Screen для створення текстури
+	pw.scr = s
 
 	if pw.OnScreenReady != nil {
 		pw.OnScreenReady(s)
@@ -73,18 +77,13 @@ func (pw *Visualizer) run(s screen.Screen) {
 		}
 	}()
 
-	var t screen.Texture
-
 	for {
 		select {
 		case e, ok := <-events:
 			if !ok {
 				return
 			}
-			pw.handleEvent(e, t)
-
-		case t = <-pw.tx:
-			w.Send(paint.Event{})
+			pw.handleEvent(e)
 		}
 	}
 }
@@ -99,9 +98,8 @@ func detectTerminate(e any) bool {
 	return false
 }
 
-func (pw *Visualizer) handleEvent(e any, t screen.Texture) {
+func (pw *Visualizer) handleEvent(e any) {
 	switch e := e.(type) {
-
 	case size.Event:
 		pw.sz = e
 
@@ -111,31 +109,27 @@ func (pw *Visualizer) handleEvent(e any, t screen.Texture) {
 	case mouse.Event:
 		if e.Button == mouse.ButtonRight && e.Direction == mouse.DirPress {
 			center := image.Pt(int(e.X), int(e.Y))
-			tex, err := pw.scr.NewTexture(pw.sz.Bounds().Size())
-			if err != nil {
-				log.Println("failed to create texture:", err)
-				return
-			}
-			drawCross(tex, pw.sz, center)
-			pw.Update(tex)
+			pw.crossCenter = &center
+			pw.w.Send(paint.Event{}) // тригер оновлення вікна
 		}
 
 	case paint.Event:
-		if t == nil {
-			pw.drawDefaultUI()
-		} else {
-			pw.w.Scale(pw.sz.Bounds(), t, t.Bounds(), draw.Src, nil)
-		}
+		pw.draw()
 		pw.w.Publish()
 	}
 }
 
-func (pw *Visualizer) drawDefaultUI() {
+func (pw *Visualizer) draw() {
 	pw.w.Fill(pw.sz.Bounds(), color.White, draw.Src)
 
-	center := image.Point{
-		X: pw.sz.Bounds().Dx() / 2,
-		Y: pw.sz.Bounds().Dy() / 2,
+	var center image.Point
+	if pw.crossCenter != nil {
+		center = *pw.crossCenter
+	} else {
+		center = image.Point{
+			X: pw.sz.Bounds().Dx() / 2,
+			Y: pw.sz.Bounds().Dy() / 2,
+		}
 	}
 
 	drawCross(pw.w, pw.sz, center)
