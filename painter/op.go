@@ -74,27 +74,31 @@ func GreenFill(state *State) Operation {
 }
 
 // BgRect повертає Operation, що малює чорний прямокутник поверх фону.
-func BgRect(state *State, x1, y1, x2, y2 int) Operation {
+func BgRect(state *State, x1, y1, x2, y2 float64) Operation {
 	return OperationFunc(func(t screen.Texture) {
-		r := image.Rect(x1, y1, x2, y2)
+		width := float64(t.Size().X)
+		height := float64(t.Size().Y)
+		r := image.Rect(int(x1*width), int(y1*height), int(x2*width), int(y2*height))
 		state.BgRect = &r
 		Repaint(state, t)
 	})
 }
 
 // AddShape повертає Operation, що малює нову фігуру хреста.
-func AddShape(state *State, x, y int) Operation {
+func AddShape(state *State, x, y float64) Operation {
 	return OperationFunc(func(t screen.Texture) {
-		state.Shapes = append(state.Shapes, image.Pt(x, y))
-		ui.DrawShape(t, t.Bounds(), image.Pt(x, y))
+		pos := image.Pt(int(x*float64(t.Size().X)), int(y*float64(t.Size().Y)))
+		state.Shapes = append(state.Shapes, pos)
+		ui.DrawShape(t, t.Bounds(), pos)
 	})
 }
 
 // MoveShapes повертає Operation, що переміщує всі фігури у нові координати.
-func MoveShapes(state *State, x, y int) Operation {
+func MoveShapes(state *State, x, y float64) Operation {
 	return OperationFunc(func(t screen.Texture) {
+		pos := image.Pt(int(x*float64(t.Size().X)), int(y*float64(t.Size().Y)))
 		for i := range state.Shapes {
-			state.Shapes[i] = image.Pt(x, y)
+			state.Shapes[i] = pos
 		}
 		Repaint(state, t)
 	})

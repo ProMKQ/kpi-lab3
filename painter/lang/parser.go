@@ -18,16 +18,16 @@ func NewParser(state *painter.State) *Parser {
 	return &Parser{state: state}
 }
 
-func parseInts(args []string, count int) ([]int, error) {
+func parseFloats(args []string, count int) ([]float64, error) {
 	if len(args) != count {
 		return nil, fmt.Errorf("expected %d arguments, got %d", count, len(args))
 	}
 
-	result := make([]int, count)
+	result := make([]float64, count)
 	for i, s := range args {
-		value, err := strconv.Atoi(s)
+		value, err := strconv.ParseFloat(s, 64)
 		if err != nil {
-			return nil, fmt.Errorf("invalid int argument '%s'", s)
+			return nil, fmt.Errorf("invalid float argument '%s'", s)
 		}
 		result[i] = value
 	}
@@ -49,19 +49,19 @@ func (p *Parser) ParseLine(line string) (painter.Operation, error) {
 	case "update":
 		return painter.UpdateOp, nil
 	case "bgrect":
-		vals, err := parseInts(args, 4)
+		vals, err := parseFloats(args, 4)
 		if err != nil {
 			return nil, err
 		}
 		return painter.BgRect(p.state, vals[0], vals[1], vals[2], vals[3]), nil
 	case "figure":
-		vals, err := parseInts(args, 2)
+		vals, err := parseFloats(args, 2)
 		if err != nil {
 			return nil, err
 		}
 		return painter.AddShape(p.state, vals[0], vals[1]), nil
 	case "move":
-		vals, err := parseInts(args, 2)
+		vals, err := parseFloats(args, 2)
 		if err != nil {
 			return nil, err
 		}
