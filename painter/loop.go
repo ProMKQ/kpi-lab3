@@ -2,59 +2,78 @@ package painter
 
 import (
 	"image"
+	"sync"
 
 	"golang.org/x/exp/shiny/screen"
 )
 
-// Receiver отримує текстуру, яка була підготовлена в результаті виконання команд у циклі подій.
 type Receiver interface {
 	Update(t screen.Texture)
 }
 
-// Loop реалізує цикл подій для формування текстури отриманої через виконання операцій отриманих з внутрішньої черги.
+// Loop реалізує цикл подій для формування текстури через виконання операцій.
 type Loop struct {
 	Receiver Receiver
 
 	next screen.Texture // текстура, яка зараз формується
-	prev screen.Texture // текстура, яка була відправлення останнього разу у Receiver
+	prev screen.Texture // текстура, яка була відправлена останнього разу
 
-	mq messageQueue
-
-	stop    chan struct{}
-	stopReq bool
+	mq   messageQueue
+	wg   sync.WaitGroup
+	stop chan struct{}
 }
 
 var size = image.Pt(400, 400)
 
-// Start запускає цикл подій. Цей метод потрібно запустити до того, як викликати на ньому будь-які інші методи.
+// Start запускає цикл подій. Запустіть цей метод перед використанням Post.
 func (l *Loop) Start(s screen.Screen) {
 	l.next, _ = s.NewTexture(size)
 	l.prev, _ = s.NewTexture(size)
 
-	// TODO: стартувати цикл подій.
+	l.mq.ops = make(chan Operation, 100)
+	l.stop = make(chan struct{})
+	l.wg.Add(1)
+
+	go func() {
+		defer l.wg.Done()
+		for {
+			select {
+			case op := <-l.mq.ops:
+				if op.Do(l.next) {
+					l.Receiver.Update(l.next)
+					l.next, l.prev = l.prev, l.next
+				}
+			case <-l.stop:
+				return
+			}
+		}
+	}()
 }
 
-// Post додає нову операцію у внутрішню чергу.
+// Post додає нову операцію до внутрішньої черги.
 func (l *Loop) Post(op Operation) {
-	if update := op.Do(l.next); update {
-		l.Receiver.Update(l.next)
-		l.next, l.prev = l.prev, l.next
-	}
+	l.mq.ops <- op
 }
 
-// StopAndWait сигналізує про необхідність завершити цикл та блокується до моменту його повної зупинки.
+// StopAndWait зупиняє цикл і чекає його завершення.
 func (l *Loop) StopAndWait() {
+	close(l.stop)
+	l.wg.Wait()
 }
 
-// TODO: Реалізувати чергу подій.
-type messageQueue struct{}
+// messageQueue реалізує просту чергу операцій через канал.
+type messageQueue struct {
+	ops chan Operation
+}
 
-func (mq *messageQueue) push(op Operation) {}
+func (mq *messageQueue) push(op Operation) {
+	mq.ops <- op
+}
 
 func (mq *messageQueue) pull() Operation {
-	return nil
+	return <-mq.ops
 }
 
 func (mq *messageQueue) empty() bool {
-	return false
+	return len(mq.ops) == 0
 }

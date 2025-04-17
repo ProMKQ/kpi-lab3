@@ -1,6 +1,7 @@
 package painter
 
 import (
+	"image"
 	"image/color"
 
 	"golang.org/x/exp/shiny/screen"
@@ -37,12 +38,55 @@ func (f OperationFunc) Do(t screen.Texture) bool {
 	return false
 }
 
-// WhiteFill зафарбовує текстуру у білий колір. Може бути використана як Operation через OperationFunc(WhiteFill).
-func WhiteFill(t screen.Texture) {
-	t.Fill(t.Bounds(), color.White, screen.Src)
+type State struct {
+	BgColor color.Color
+	BgRect  *image.Rectangle
+	Figures []image.Point
 }
 
-// GreenFill зафарбовує текстуру у зелений колір. Може бути використана як Operation через OperationFunc(GreenFill).
-func GreenFill(t screen.Texture) {
-	t.Fill(t.Bounds(), color.RGBA{G: 0xff, A: 0xff}, screen.Src)
+// WhiteFill повертає Operation, що фарбує фон у білий колір.
+func WhiteFill(st *State) Operation {
+	return OperationFunc(func(t screen.Texture) {
+		st.BgColor = color.White
+	})
+}
+
+// GreenFill повертає Operation, що фарбує фон у зелений колір.
+func GreenFill(st *State) Operation {
+	return OperationFunc(func(t screen.Texture) {
+		st.BgColor = color.RGBA{G: 0xff, A: 0xff}
+	})
+}
+
+// BgRect повертає Operation, що малює чорний прямокутник поверх фону.
+func BgRect(st *State, x1, y1, x2, y2 int) Operation {
+	return OperationFunc(func(t screen.Texture) {
+		r := image.Rect(x1, y1, x2, y2)
+		st.BgRect = &r
+	})
+}
+
+// AddFigure повертає Operation, що малює нову фігуру хреста.
+func AddFigure(st *State, x, y int) Operation {
+	return OperationFunc(func(t screen.Texture) {
+		st.Figures = append(st.Figures, image.Pt(x, y))
+	})
+}
+
+// MoveFigures повертає Operation, що переміщує всі фігури у нові координати.
+func MoveFigures(st *State, x, y int) Operation {
+	return OperationFunc(func(t screen.Texture) {
+		for i := range st.Figures {
+			st.Figures[i] = image.Pt(x, y)
+		}
+	})
+}
+
+// Reset повертає Operation, що очищує стан малюнку, залишаючи лише фон чорного кольору.
+func Reset(st *State) Operation {
+	return OperationFunc(func(t screen.Texture) {
+		st.BgColor = color.Black
+		st.BgRect = nil
+		st.Figures = nil
+	})
 }
