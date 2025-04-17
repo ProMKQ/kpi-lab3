@@ -59,13 +59,13 @@ func (p *Parser) ParseLine(line string) (painter.Operation, error) {
 		if err != nil {
 			return nil, err
 		}
-		return painter.AddFigure(p.state, vals[0], vals[1]), nil
+		return painter.AddShape(p.state, vals[0], vals[1]), nil
 	case "move":
 		vals, err := parseInts(args, 2)
 		if err != nil {
 			return nil, err
 		}
-		return painter.MoveFigures(p.state, vals[0], vals[1]), nil
+		return painter.MoveShapes(p.state, vals[0], vals[1]), nil
 	case "reset":
 		return painter.Reset(p.state), nil
 	default:

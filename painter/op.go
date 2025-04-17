@@ -4,6 +4,7 @@ import (
 	"image"
 	"image/color"
 
+	"github.com/ProMKQ/kpi-lab3/ui"
 	"golang.org/x/exp/shiny/screen"
 )
 
@@ -41,52 +42,70 @@ func (f OperationFunc) Do(t screen.Texture) bool {
 type State struct {
 	BgColor color.Color
 	BgRect  *image.Rectangle
-	Figures []image.Point
+	Shapes  []image.Point
+}
+
+func Repaint(state *State, t screen.Texture) {
+	tRect := t.Bounds()
+	t.Fill(tRect, state.BgColor, screen.Src)
+	if state.BgRect != nil {
+		t.Fill(*state.BgRect, color.Black, screen.Src)
+	}
+
+	for i := range state.Shapes {
+		ui.DrawShape(t, tRect, state.Shapes[i])
+	}
 }
 
 // WhiteFill повертає Operation, що фарбує фон у білий колір.
-func WhiteFill(st *State) Operation {
+func WhiteFill(state *State) Operation {
 	return OperationFunc(func(t screen.Texture) {
-		st.BgColor = color.White
+		state.BgColor = color.White
+		Repaint(state, t)
 	})
 }
 
 // GreenFill повертає Operation, що фарбує фон у зелений колір.
-func GreenFill(st *State) Operation {
+func GreenFill(state *State) Operation {
 	return OperationFunc(func(t screen.Texture) {
-		st.BgColor = color.RGBA{G: 0xff, A: 0xff}
+		state.BgColor = color.RGBA{G: 0xff, A: 0xff}
+		Repaint(state, t)
 	})
 }
 
 // BgRect повертає Operation, що малює чорний прямокутник поверх фону.
-func BgRect(st *State, x1, y1, x2, y2 int) Operation {
+func BgRect(state *State, x1, y1, x2, y2 int) Operation {
 	return OperationFunc(func(t screen.Texture) {
 		r := image.Rect(x1, y1, x2, y2)
-		st.BgRect = &r
+		state.BgRect = &r
+		Repaint(state, t)
 	})
 }
 
-// AddFigure повертає Operation, що малює нову фігуру хреста.
-func AddFigure(st *State, x, y int) Operation {
+// AddShape повертає Operation, що малює нову фігуру хреста.
+func AddShape(state *State, x, y int) Operation {
 	return OperationFunc(func(t screen.Texture) {
-		st.Figures = append(st.Figures, image.Pt(x, y))
+		state.Shapes = append(state.Shapes, image.Pt(x, y))
+		ui.DrawShape(t, t.Bounds(), image.Pt(x, y))
 	})
 }
 
-// MoveFigures повертає Operation, що переміщує всі фігури у нові координати.
-func MoveFigures(st *State, x, y int) Operation {
+// MoveShapes повертає Operation, що переміщує всі фігури у нові координати.
+func MoveShapes(state *State, x, y int) Operation {
 	return OperationFunc(func(t screen.Texture) {
-		for i := range st.Figures {
-			st.Figures[i] = image.Pt(x, y)
+		for i := range state.Shapes {
+			state.Shapes[i] = image.Pt(x, y)
 		}
+		Repaint(state, t)
 	})
 }
 
 // Reset повертає Operation, що очищує стан малюнку, залишаючи лише фон чорного кольору.
-func Reset(st *State) Operation {
+func Reset(state *State) Operation {
 	return OperationFunc(func(t screen.Texture) {
-		st.BgColor = color.Black
-		st.BgRect = nil
-		st.Figures = nil
+		state.BgColor = color.Black
+		state.BgRect = nil
+		state.Shapes = nil
+		t.Fill(t.Bounds(), state.BgColor, screen.Src)
 	})
 }

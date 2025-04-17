@@ -27,11 +27,11 @@ type Visualizer struct {
 	done chan struct{}
 
 	sz          size.Event
-	crossCenter *image.Point // нове: центр хрестика
+	crossCenter *image.Point
 }
 
 func (pw *Visualizer) Update(t screen.Texture) {
-	panic("implement me")
+	pw.tx <- t
 }
 
 func (pw *Visualizer) Main() {
@@ -77,6 +77,7 @@ func (pw *Visualizer) run(s screen.Screen) {
 		}
 	}()
 
+	var t screen.Texture
 	for {
 		select {
 		case e, ok := <-events:
@@ -84,6 +85,9 @@ func (pw *Visualizer) run(s screen.Screen) {
 				return
 			}
 			pw.handleEvent(e)
+		case t = <-pw.tx:
+			pw.w.Scale(pw.sz.Bounds(), t, t.Bounds(), draw.Src, nil)
+			pw.w.Publish()
 		}
 	}
 }
@@ -120,31 +124,32 @@ func (pw *Visualizer) handleEvent(e any) {
 }
 
 func (pw *Visualizer) draw() {
-	pw.w.Fill(pw.sz.Bounds(), color.White, draw.Src)
+	windowRect := pw.sz.Bounds()
+	pw.w.Fill(windowRect, color.White, draw.Src)
 
 	var center image.Point
 	if pw.crossCenter != nil {
 		center = *pw.crossCenter
 	} else {
 		center = image.Point{
-			X: pw.sz.Bounds().Dx() / 2,
-			Y: pw.sz.Bounds().Dy() / 2,
+			X: windowRect.Dx() / 2,
+			Y: windowRect.Dy() / 2,
 		}
 	}
 
-	drawCross(pw.w, pw.sz, center)
+	DrawShape(pw.w, windowRect, center)
 
-	for _, br := range imageutil.Border(pw.sz.Bounds(), 10) {
+	for _, br := range imageutil.Border(windowRect, 10) {
 		pw.w.Fill(br, color.White, draw.Src)
 	}
 }
 
-func drawCross(target interface {
+func DrawShape(target interface {
 	Fill(r image.Rectangle, c color.Color, op draw.Op)
-}, sz size.Event, center image.Point) {
-	crossSize := sz.Bounds().Dx() / 2
+}, windowRect image.Rectangle, center image.Point) {
+	crossSize := windowRect.Dx() / 2
 	thickness := crossSize / 3
-	blue := color.RGBA{0, 0, 255, 255}
+	blue := color.RGBA{B: 0xff, A: 0xff}
 
 	vRect := image.Rect(
 		center.X-thickness/2,
