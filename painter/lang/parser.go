@@ -3,6 +3,7 @@ package lang
 import (
 	"bufio"
 	"fmt"
+	"image/color"
 	"io"
 	"strconv"
 	"strings"
@@ -43,31 +44,38 @@ func (p *Parser) ParseLine(line string) (painter.Operation, error) {
 
 	switch cmd {
 	case "white":
-		return painter.WhiteFill(p.state), nil
+		return painter.SetBgColorOp(p.state, color.White), nil
+
 	case "green":
-		return painter.GreenFill(p.state), nil
+		return painter.SetBgColorOp(p.state, color.RGBA{G: 0xff, A: 0xff}), nil
+
 	case "update":
 		return painter.UpdateOp, nil
+
 	case "bgrect":
 		vals, err := parseFloats(args, 4)
 		if err != nil {
 			return nil, err
 		}
-		return painter.BgRect(p.state, vals[0], vals[1], vals[2], vals[3]), nil
+		return painter.BgRectOp(p.state, vals[0], vals[1], vals[2], vals[3]), nil
+
 	case "figure":
 		vals, err := parseFloats(args, 2)
 		if err != nil {
 			return nil, err
 		}
-		return painter.AddShape(p.state, vals[0], vals[1]), nil
+		return painter.AddShapeOp(p.state, vals[0], vals[1]), nil
+
 	case "move":
 		vals, err := parseFloats(args, 2)
 		if err != nil {
 			return nil, err
 		}
-		return painter.MoveShapes(p.state, vals[0], vals[1]), nil
+		return painter.MoveShapesOp(p.state, vals[0], vals[1]), nil
+
 	case "reset":
-		return painter.Reset(p.state), nil
+		return painter.ResetOp(p.state), nil
+
 	default:
 		return nil, fmt.Errorf("unknown command: %s", cmd)
 	}

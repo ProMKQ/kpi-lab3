@@ -57,24 +57,18 @@ func Repaint(state *State, t screen.Texture) {
 	}
 }
 
-// WhiteFill повертає Operation, що фарбує фон у білий колір.
-func WhiteFill(state *State) Operation {
+// SetBgColorOp повертає Operation, що фарбує фон у колір clr.
+func SetBgColorOp(state *State, clr color.Color) Operation {
 	return OperationFunc(func(t screen.Texture) {
-		state.BgColor = color.White
-		Repaint(state, t)
+		if state.BgColor != clr {
+			defer Repaint(state, t)
+		}
+		state.BgColor = clr
 	})
 }
 
-// GreenFill повертає Operation, що фарбує фон у зелений колір.
-func GreenFill(state *State) Operation {
-	return OperationFunc(func(t screen.Texture) {
-		state.BgColor = color.RGBA{G: 0xff, A: 0xff}
-		Repaint(state, t)
-	})
-}
-
-// BgRect повертає Operation, що малює чорний прямокутник поверх фону.
-func BgRect(state *State, x1, y1, x2, y2 float64) Operation {
+// BgRectOp повертає Operation, що малює чорний прямокутник поверх фону.
+func BgRectOp(state *State, x1, y1, x2, y2 float64) Operation {
 	return OperationFunc(func(t screen.Texture) {
 		width := float64(t.Size().X)
 		height := float64(t.Size().Y)
@@ -84,8 +78,8 @@ func BgRect(state *State, x1, y1, x2, y2 float64) Operation {
 	})
 }
 
-// AddShape повертає Operation, що малює нову фігуру хреста.
-func AddShape(state *State, x, y float64) Operation {
+// AddShapeOp повертає Operation, що малює нову фігуру хреста.
+func AddShapeOp(state *State, x, y float64) Operation {
 	return OperationFunc(func(t screen.Texture) {
 		pos := image.Pt(int(x*float64(t.Size().X)), int(y*float64(t.Size().Y)))
 		state.Shapes = append(state.Shapes, pos)
@@ -93,8 +87,8 @@ func AddShape(state *State, x, y float64) Operation {
 	})
 }
 
-// MoveShapes повертає Operation, що переміщує всі фігури у нові координати.
-func MoveShapes(state *State, x, y float64) Operation {
+// MoveShapesOp повертає Operation, що переміщує всі фігури у нові координати.
+func MoveShapesOp(state *State, x, y float64) Operation {
 	return OperationFunc(func(t screen.Texture) {
 		pos := image.Pt(int(x*float64(t.Size().X)), int(y*float64(t.Size().Y)))
 		for i := range state.Shapes {
@@ -104,8 +98,8 @@ func MoveShapes(state *State, x, y float64) Operation {
 	})
 }
 
-// Reset повертає Operation, що очищує стан малюнку, залишаючи лише фон чорного кольору.
-func Reset(state *State) Operation {
+// ResetOp повертає Operation, що очищує стан малюнку, залишаючи лише фон чорного кольору.
+func ResetOp(state *State) Operation {
 	return OperationFunc(func(t screen.Texture) {
 		state.BgColor = color.Black
 		state.BgRect = nil

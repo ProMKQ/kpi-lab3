@@ -32,10 +32,8 @@ func (l *Loop) Start(s screen.Screen) {
 
 	l.mq.ops = make(chan Operation, 100)
 	l.stop = make(chan struct{})
-	l.wg.Add(1)
 
 	go func() {
-		defer l.wg.Done()
 		for {
 			select {
 			case op := <-l.mq.ops:
@@ -43,8 +41,7 @@ func (l *Loop) Start(s screen.Screen) {
 					l.Receiver.Update(l.next)
 					l.next, l.prev = l.prev, l.next
 				}
-			case <-l.stop:
-				return
+				l.wg.Done()
 			}
 		}
 	}()
@@ -52,12 +49,12 @@ func (l *Loop) Start(s screen.Screen) {
 
 // Post додає нову операцію до внутрішньої черги.
 func (l *Loop) Post(op Operation) {
+	l.wg.Add(1)
 	l.mq.ops <- op
 }
 
 // StopAndWait зупиняє цикл і чекає його завершення.
 func (l *Loop) StopAndWait() {
-	close(l.stop)
 	l.wg.Wait()
 }
 
